@@ -8,6 +8,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 const { connection } = require('./connector')
 
+
 //TOTAL RECOVERED
 app.get("/totalRecovered", async (req,res)=>{
     let result = await connection.aggregate([{
