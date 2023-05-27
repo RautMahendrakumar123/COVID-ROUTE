@@ -11,90 +11,125 @@ const { connection } = require('./connector')
 
 //TOTAL RECOVERED
 app.get("/totalRecovered", async (req,res)=>{
-    let result = await connection.aggregate([{
-        $group:{
-            _id:"$id",
-            recovered:{$sum:"$recovered"}
-        }
-    }])
+    try {
 
-    res.send(result)
+        const result = await connection.aggregate([{
+            $group:{
+                _id:"total",
+                recovered:{$sum:"$recovered"}
+            }
+        }])
+    
+        res.send(result)
+    }catch(err){
+        res.send(err.message)
+    }
 
 })
 
 ///TOTAL ACTIVE
 app.get("/totalActive", async (req,res)=>{
-    let result = await connection.aggregate([
-        {
-            $group: {
-                _id: "$id",
-                active: {
-                    $sum: { $subtract: ['$infected', '$recovered'] }
+    try{
+       let result = await connection.aggregate([
+            {
+                $group: {
+                    _id: "total",
+                    active: {
+                        $sum: { $subtract: ['$infected', '$recovered'] }
+                    }
                 }
             }
-        }
-    ])
-    res.send(result)
+        ])
+        res.send(result)
+    }catch(err){
+        res.send(err.message)
+    }
     })
 
     ///TOTAL DEATH
 app.get("/totalDeath", async (req,res)=>{
-   let result = await connection.aggregate([{
-    $group:{
-        _id:"$id",
-        totaldeath:{ $sum: "$death" }
+    try{
+        let result = await connection.aggregate([{
+         $group:{
+             _id:"total",
+             totaldeath:{ $sum: "$death" }
+         }
+        }])
+        res.send(result);
+    }catch(err){
+        res.send(err.message)
     }
-   }])
-   res.send(result);
     })
 
     ///HOTSPOT STATE
-app.get("/hotspotStates", async(req,res)=>{
-   
-    let result = await connection.aggregate(
-        [
+app.get('/hotspotStates' , async(req , res)=>{
+    try{
+        const result = await connection.aggregate([
             {
-                $project:
-                {
-                    state: "$state",
-                    rate: {
-                        $cond: {
-                            if: {
-                                $gte: [
-                                    { $round: [{ $divide: [{ $subtract: ['$infected', '$recovered'] }, '$infected'] }, 5] }, 0.1]
-                            }, then: null, else: "hotspotState"
-                        }
-                    }
+              $addFields:{
+                rate : {
+                  $round : [
+                      {
+                        $divide : [
+                            {
+                            $subtract : ["$infected" , "$recovered"],
+                            },"$infected"
+                          ],
+                      },
+                      5,
+                    ],
                 }
-            }
-        ]
-    )
-    res.send(result);
-    
-    })
+              }
+            },
+            {
+              $match : {rate : {$gt : 0.1}},
+            },
+            {
+                $project : {
+                  _id : 0,
+                  state : 1,
+                  rate : 1
+                }
+              }
+              ])
+          res.send(result);
+      }catch(err){
+          res.send(err.message)
+      }
+  })
 
     ///HEALTHY STATE
-app.get("/healthyStates", async(req,res)=>{
-    let result = await connection.aggregate(
-        [
-            {
-                $project:
+    app.get('/healthyStates' , async(req , res)=>{
+        try{
+            const result = await connection.aggregate([
                 {
-                    state: "$state",
-                    mortality: {
-                        $cond: {
-                            if: {
-                                $gte: [
-                                    { $round: [{ $divide: ['$death', '$infected'] }, 5] }, 0.005]
-                            }, then: null, else: "healthyState"
+                    $addFields : {
+                        mortality : {
+                            $round : [
+                                {
+                                    $divide : [
+                                        "$death" , "$infected"
+                                    ]
+                                } , 5
+                            ]
                         }
                     }
+                },{
+                    $match : {
+                        mortality : {$lt : 0.05}
+                    }
+                },{
+                    $project : {
+                        _id : 0,
+                        state : 1,
+                        mortality : 1
+                    }
                 }
-            }
-        ]
-    )
-    res.send(result);
-    
+            ])
+            res.send(result);
+        }catch(err){
+            res.send(err.message)
+        }
     })
 
 
